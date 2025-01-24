@@ -1,7 +1,0 @@
-when ACCESS_POLICY_COMPLETED {
-        set landing_protocol [ACCESS::session data get "session.server.network.protocol"]
-        set landing_host [ACCESS::session data get "session.server.multidomain_host"]
-        set landing_uri [ACCESS::session data get "session.server.multidomain_landinguri"]
-        
-        ACCESS::respond 302 "Location" "$landing_protocol://$landing_host$landing_uri" "Connection" "Close"
-}
