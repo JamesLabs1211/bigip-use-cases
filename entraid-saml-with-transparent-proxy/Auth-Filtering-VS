@@ -10,7 +10,7 @@ when HTTP_REQUEST {
         # Decode the value from base64
         set decoded_value [b64decode [URI::decode $encoded_value]]
         
-        # Rewrite the URL and redirect it to the Auth-Filtering-VS 
+        # Replace the Virtual Server IP Address to fit your environment 
         HTTP::respond 302 "Location" "https://10.1.10.53/confirmation?orig=$encoded_value" "Connection" "Close"
         
     } elseif {[HTTP::uri] starts_with "/confirmation"} {
@@ -40,6 +40,6 @@ when ACCESS_SESSION_STARTED {
 when ACCESS_POLICY_COMPLETED {
         set encoded_var [ACCESS::session data get "session.custom.orig_uri_encoded"]
         
-        # Redirect a client to the originally requested URI
+        # Replace the Virtual Server IP Address to fit your environment
         ACCESS::respond 302 "Location" "https://10.1.10.55/F5Networks-SSO-Req?SSO_ORIG_URI=$encoded_var" "Connection" "Close"
 }
