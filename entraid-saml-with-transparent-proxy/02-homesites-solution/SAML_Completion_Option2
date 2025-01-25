@@ -1,0 +1,11 @@
+when ACCESS_POLICY_COMPLETED {
+    set orig_domain [ACCESS::session data get "session.server.multidomain_host"]
+    set orig_landinguri [ACCESS::session data get "session.server.multidomain_landinguri"]
+    set orig_protocol [ACCESS::session data get "session.server.network.protocol"]
+
+    if { $orig_domain ne "" && $orig_landinguri ne "" } {
+        ACCESS::respond 302 "Location" "$orig_protocol://$orig_domain$orig_landinguri" "Connection" "Close"
+    } else {
+        ACCESS::respond 302 "Location" "https://www.f5.com/" "Connection" "Close"
+    }
+}
