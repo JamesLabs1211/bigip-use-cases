@@ -1,0 +1,79 @@
+when HTTP_REQUEST {
+    # Log the URI query
+    set query_val [URI::query [HTTP::uri]]
+
+    # Check if the URI contains the 'SSO_ORIG_URI' parameter
+    if {$query_val contains "SSO_ORIG_URI"} {
+        # Extract the value of the 'SSO_ORIG_URI' parameter
+        set encoded_value [URI::query [HTTP::uri] SSO_ORIG_URI]
+
+        # Decode the value from base64
+        set decoded_value [b64decode [URI::decode $encoded_value]]
+
+        # Check if the decoded value matches 'home_sites' Datagroup
+        if {[class match $decoded_value equals home_sites]} {
+            # Allow traffic to proceed if the decoded value matches
+            HTTP::respond 302 "Location" "https://10.1.40.55/F5Networks-SSO-Req?SSO_ORIG_URI=$encoded_value" "Connection" "Close"
+        } else {
+            # Respond with an error message if the value does not match
+            HTTP::respond 403 content {
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Access Denied</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            background-color: #f8f9fa;
+                            color: #333;
+                            text-align: center;
+                            padding: 50px;
+                        }
+                        .container {
+                            max-width: 600px;
+                            margin: auto;
+                            background: #fff;
+                            padding: 20px;
+                            border-radius: 10px;
+                            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+                        }
+                        h1 {
+                            color: #dc3545;
+                        }
+                        p {
+                            margin: 15px 0;
+                            line-height: 1.6;
+                        }
+                        a {
+                            color: #007bff;
+                            text-decoration: none;
+                        }
+                        a:hover {
+                            text-decoration: underline;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Access Denied</h1>
+                        <p>
+                            You must access one of the following sites first to use the internet:
+                        </p>
+                        <ul>
+                            <li><a href="https://www.f5.com/" target="_blank">https://www.f5.com/</a></li>
+                            <li><a href="https://nginx.org/" target="_blank">https://nginx.org/</a></li>
+                            <li><a href="https://community.f5.com/" target="_blank">https://community.f5.com/</a></li>
+                        </ul>
+                        <p>Please visit one of these sites and try again.</p>
+                    </div>
+                </body>
+                </html>
+            }
+        }
+    } else {
+        # If the 'SSO_ORIG_URI' parameter is missing, respond with an error
+        HTTP::respond 400 content "Error: Missing SSO_ORIG_URI parameter"
+    }
+}
