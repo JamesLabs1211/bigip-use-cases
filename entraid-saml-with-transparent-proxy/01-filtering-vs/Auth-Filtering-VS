@@ -1,0 +1,45 @@
+when HTTP_REQUEST {
+    # Log the URI query and the URI
+    set query_val [URI::query [HTTP::uri]]
+
+    # Check if the URI contains the 'SSO_ORIG_URI' parameter
+    if {$query_val contains "SSO_ORIG_URI"} {
+        # Extract the value of the 'SSO_ORIG_URI' parameter
+        set encoded_value [URI::query [HTTP::uri] SSO_ORIG_URI]
+
+        # Decode the value from base64
+        set decoded_value [b64decode [URI::decode $encoded_value]]
+        
+        # Rewrite the URL and redirect it to the Auth-Filtering-VS 
+        HTTP::respond 302 "Location" "https://10.1.10.53/confirmation?orig=$encoded_value" "Connection" "Close"
+        
+    } elseif {[HTTP::uri] starts_with "/confirmation"} {
+        # Process the Per-Session Policy
+        return
+    } elseif { not ($query_val contains "SSO_ORIG_URI") } {
+        # If the 'SSO_ORIG_URI' parameter is missing, respond with an error
+        HTTP::respond 400 content "Error: Missing SSO_ORIG_URI parameter"
+    }
+}
+
+when ACCESS_SESSION_STARTED {
+   if {[HTTP::uri] starts_with "/confirmation"} {
+        # Extract the value of the 'orig' parameter
+        set encoded_value [URI::query [HTTP::uri] orig]
+        
+        # Decode the value from base64
+        set decoded_value [b64decode [URI::decode $encoded_value]]
+        
+        # Store the initially requested URI value to the Access Session variables
+        ACCESS::session data set session.custom.orig_uri_encoded $encoded_value
+        ACCESS::session data set session.custom.orig_uri_decoded $decoded_value
+    }
+   
+}
+
+when ACCESS_POLICY_COMPLETED {
+        set encoded_var [ACCESS::session data get "session.custom.orig_uri_encoded"]
+        
+        # Redirect a client to the originally requested URI
+        ACCESS::respond 302 "Location" "https://10.1.10.55/F5Networks-SSO-Req?SSO_ORIG_URI=$encoded_var" "Connection" "Close"
+}
