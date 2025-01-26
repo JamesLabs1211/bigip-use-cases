@@ -1,0 +1,55 @@
+when HTTP_RESPONSE {
+    # Collect the entire HTTP response body if Content-Length exists and is reasonable
+    if {[HTTP::header exists "Content-Length"] && [HTTP::header "Content-Length"] <= 1048576} {
+        HTTP::collect [HTTP::header "Content-Length"]
+    } else {
+        log local0. "Response body too large or missing Content-Length, skipping collection."
+        return
+    }
+}
+
+when HTTP_RESPONSE_DATA {
+    # JSON response from the server
+    set json_data [HTTP::payload]
+
+    # Log the JSON response for debugging
+    log local0. "Received JSON response: $json_data"
+
+    # JSONPath to extract the X-Test field
+    set json_path "$.headers.X-Test"
+
+    # Initialize variables for the token index and length
+    set token_index -1
+    set token_length -1
+
+    # Attempt to parse and extract the token
+    set token_index [call json::json_get $json_data $json_path token_length]
+
+    if { $token_index >= 0 } {
+        # Extract the token value
+        set token [string range $json_data $token_index [expr {$token_index + $token_length - 1}]]
+
+        # Decode the token to get the actual value
+        set x_test_value [call json::json_decode_str $token]
+
+        # Log the extracted value
+        log local0. "Extracted X-Test value: $x_test_value"
+
+        # Validate the email format in X-Test
+        set email_regex {^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$}
+        if {[regexp $email_regex $x_test_value]} {
+            log local0. "Valid email format found: $x_test_value"
+        } else {
+            log local0. "Invalid email format found: $x_test_value"
+            HTTP::respond 200 content "<HTML><HEAD><TITLE>Response Violation</TITLE></HEAD><BODY>Incorrect email format found</BODY></HTML>" \
+            Content-Type "text/html"
+            return
+        }
+    } else {
+        # Handle cases where X-Test is not found
+        log local0. "X-Test field not found in the JSON response."
+    }
+
+    # Release the collected data to send the response to the client
+    HTTP::release
+}
